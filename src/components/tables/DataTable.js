@@ -11,7 +11,6 @@ export default {
     return {
       desc: null,
       page: 1,
-      rowsPerPage: 5,
       sorting: null,
       all: false
     }
@@ -42,6 +41,10 @@ export default {
       type: String,
       default: 'No matching records found'
     },
+    rowsPerPage: {
+      type: [Number, String],
+      default: 5
+    },
     rowsPerPageItems: {
       type: Array,
       default () {
@@ -53,6 +56,10 @@ export default {
         ]
       }
     },
+    rowsPerPageText: {
+      type: String,
+      default: 'Rows per page:'
+    },
     selectAll: Boolean,
     search: {
       required: false
@@ -60,7 +67,8 @@ export default {
     filter: {
       type: Function,
       default: (val, search) => {
-        return ['undefined', 'boolean'].indexOf(typeof val) === -1 &&
+        return val !== null &&
+          ['undefined', 'boolean'].indexOf(typeof val) === -1 &&
           val.toString().toLowerCase().indexOf(search) !== -1
       }
     },
@@ -165,11 +173,16 @@ export default {
     }
   },
 
+  mounted () {
+    const header = this.headers.find(h => !('sortable' in h) || h.sortable)
+    this.sorting = !this.sorting ? header.value : this.sorting
+  },
+
   render (h) {
     return h('v-table-overflow', {}, [
       h('table', {
         'class': {
-          'datatable': true,
+          'datatable table': true,
           'datatable--select-all': this.selectAll
         }
       }, [

@@ -1,60 +1,68 @@
 import Toggleable from '../../mixins/toggleable'
+import Overlayable from '../../mixins/overlayable'
 
 export default {
   name: 'sidebar',
 
-  mixins: [Toggleable],
+  mixins: [Overlayable, Toggleable],
+
+  data () {
+    return {
+      isMobile: false
+    }
+  },
 
   props: {
     absolute: Boolean,
-    closeOnClick: {
-      type: Boolean,
-      default: true
-    },
+    disableRouteWatcher: Boolean,
     drawer: Boolean,
     fixed: Boolean,
-    right: Boolean,
     height: String,
-    mobile: {
-      type: Boolean,
-      default: true
-    },
+    light: Boolean,
+    mini: Boolean,
+    persistent: Boolean,
     mobileBreakPoint: {
-      type: Number,
-      default: 992
+      type: [Number, String],
+      default: 1024
     },
-    disableRouteWatcher: Boolean
+    right: Boolean
   },
 
   computed: {
     calculatedHeight () {
-      if (this.height) return this.height
-      return this.fixed || this.drawer ? '100vh' : 'auto'
+      return this.height
+        ? isNaN(this.mobileBreakPoint)
+          ? this.mobileBreakPoint
+          : `${this.mobileBreakPoint}px`
+        : '100vh'
     },
     classes () {
       return {
         'sidebar': true,
-        'sidebar--close': !this.isActive,
-        'sidebar--right': this.right,
-        'sidebar--drawer': this.drawer,
         'sidebar--absolute': this.absolute,
-        'sidebar--fixed': this.fixed || this.drawer,
-        'sidebar--fixed-right': this.fixed && this.right,
-        'sidebar--mobile': this.mobile,
-        'sidebar--open': this.isActive
+        'sidebar--close': !this.isActive,
+        'sidebar--dark': !this.light,
+        'sidebar--drawer': this.drawer || this.isMobile,
+        'sidebar--light': this.light,
+        'sidebar--mini': this.mini,
+        'sidebar--persistent': this.persistent,
+        'sidebar--is-mobile': this.isMobile,
+        'sidebar--open': this.isActive,
+        'sidebar--right': this.right
       }
     },
-    styles () {
-      return {
-        height: this.calculatedHeight
-      }
+    showOverlay () {
+      return this.isActive && !this.hideOverlay && (this.drawer || this.isMobile)
     }
   },
 
   watch: {
+    showOverlay (val) {
+      val && this.genOverlay() || this.removeOverlay()
+    },
     '$route' () {
       if (!this.disableRouteWatcher) {
-        this.isActive = !this.routeChanged()
+        this.isActive = !this.closeConditional()
       }
     }
   },
@@ -72,33 +80,23 @@ export default {
 
   methods: {
     closeConditional () {
-      return this.routeChanged()
+      return !this.persistent && (this.drawer || this.isMobile)
     },
-
     resize () {
-      if (this.mobile && !this.drawer) {
-        this.isActive = window.innerWidth >= this.mobileBreakPoint
-      }
-    },
+      this.isMobile = window.innerWidth <= parseInt(this.mobileBreakPoint)
 
-    routeChanged () {
-      return (
-        (window.innerWidth < this.mobileBreakPoint && this.mobile) ||
-        (this.drawer && this.closeOnClick)
-      )
+      if (!this.persistent) this.isActive = !this.isMobile
     }
   },
 
   render (h) {
     const data = {
       'class': this.classes,
-      style: this.styles,
-      directives: [
-        {
-          name: 'click-outside',
-          value: this.closeConditional
-        }
-      ]
+      style: { height: this.calculatedHeight },
+      directives: [{
+        name: 'click-outside',
+        value: this.closeConditional
+      }]
     }
 
     return h('aside', data, [this.$slots.default])

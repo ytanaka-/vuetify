@@ -1,7 +1,8 @@
 export default {
-  name: 'icon',
+  functional: true,
 
   props: {
+    light: Boolean,
     large: Boolean,
     left: Boolean,
     medium: Boolean,
@@ -9,20 +10,21 @@ export default {
     xLarge: Boolean
   },
 
-  computed: {
-    classes () {
-      return {
-        'material-icons icon': true,
-        'icon--large': this.large,
-        'icon--left': this.left,
-        'icon--medium': this.medium,
-        'icon--right': this.right,
-        'icon--x-large': this.xLarge
-      }
-    }
-  },
+  render (h, { props, data, children }) {
+    data.staticClass = data.staticClass ? `material-icons icon ${data.staticClass} ` : 'material-icons icon '
 
-  render (h) {
-    return h('i', { 'class': this.classes }, this.$slots.default)
+    const classes = {
+      'icon--dark': !props.light,
+      'icon--large': props.large,
+      'icon--left': props.left,
+      'icon--light': props.light,
+      'icon--medium': props.medium,
+      'icon--right': props.right,
+      'icon--x-large': props.xLarge
+    }
+
+    data.staticClass += Object.keys(classes).filter(k => classes[k]).join(' ')
+
+    return h('i', data, children)
   }
 }

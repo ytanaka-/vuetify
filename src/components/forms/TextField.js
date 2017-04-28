@@ -68,6 +68,7 @@ export default {
     autoGrow: Boolean,
     counter: Boolean,
     fullWidth: Boolean,
+    maxlength: [Number, String],
     min: {
       type: [Number, String],
       default: 0
@@ -83,6 +84,7 @@ export default {
       default: 'text'
     },
     name: String,
+    readonly: Boolean,
     rows: {
       default: 5
     }
@@ -109,7 +111,7 @@ export default {
   mounted () {
     this.$vuetify.load(() => {
       this.multiLine && this.autoGrow && this.calculateInputHeight()
-      this.autofocus && this.$refs.input.focus()
+      this.autofocus && this.focus()
     })
   },
 
@@ -126,6 +128,10 @@ export default {
     blur () {
       this.validate()
       this.$nextTick(() => (this.focused = false))
+    },
+    focus () {
+      this.focused = true
+      this.$refs.input.focus()
     },
     genCounter () {
       return this.$createElement('div', {
@@ -149,22 +155,21 @@ export default {
           autofucus: this.autofocus
         },
         attrs: {
-          tabindex: this.tabindex
+          tabindex: this.tabindex,
+          readonly: this.readonly
         },
         on: {
           blur: this.blur,
           input: this.onInput,
-          focus: () => (this.focused = true)
+          focus: this.focus
         },
         ref: 'input'
       }
 
+      if (this.placeholder) inputData.domProps.placeholder = this.placeholder
       if (this.autocomplete) inputData.domProps.autocomplete = true
-
-      // add only if set
-      if (this.name) {
-        inputData.attrs = { name: this.name }
-      }
+      if (this.name) inputData.attrs = { name: this.name }
+      if (this.maxlength) inputData.attrs.maxlength = this.maxlength
 
       if (this.multiLine) {
         inputData.domProps.rows = this.rows
