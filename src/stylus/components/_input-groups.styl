@@ -49,7 +49,7 @@
     &:not(.input-group--disabled)
       .input-group__details
         &:after
-          width: 100%
+          transform: scaleX(1)
 
   &--active
     //
@@ -59,21 +59,31 @@
       background-color: $theme.error
 
   &--light
+    &:hover .input-group__details:before
+      background-color: rgba($material-dark.text-field-line.color, $material-dark.text-field-line.opacity-hover)
+      height: 2px
+      top: -1px
+
     .input-group__hint
       color: rgba($material-dark.fg-color, .54)
 
     .input-group__details:before
-      background-color: $material-twelve-percent-light
+      background-color: rgba($material-dark.text-field-line.color, $material-dark.text-field-line.opacity)
 
     .icon
       color: rgba($material-dark.fg-color, .6)
 
   &--dark
+    &:hover .input-group__details:before
+      background-color: rgba($material-light.text-field-line.color, $material-light.text-field-line.opacity-hover)
+      height: 2px
+      top: -1px
+
     .input-group__hint
       color: rgba($material-light.fg-color, .7)
 
     .input-group__details:before
-      background-color: $material-twelve-percent-dark
+      background-color: rgba($material-light.text-field-line.color, $material-light.text-field-line.opacity)
 
     .icon
       color: rgba($material-light.fg-color, .6)
@@ -108,7 +118,8 @@
       top: -1px
       height: 2px
       transition: .3s $transition.fast-out-slow-in
-      width: 0%
+      width: 100%
+      transform: scaleX(0)
       z-index: 1
 
     &:before
