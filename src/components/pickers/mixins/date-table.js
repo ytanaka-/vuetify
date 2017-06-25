@@ -3,7 +3,7 @@ export default {
     genTable () {
       const children = []
       const data = {
-        'class': 'picker--date__table',
+        'class': 'picker--date__table'
       }
 
       if (this.scrollable) {
@@ -13,7 +13,7 @@ export default {
 
             let month = this.tableMonth
             const year = this.tableYear
-            const next = e.wheelDelta > 0
+            const next = e.deltaY < 0
 
             if (next) month++
             else month--
@@ -37,8 +37,8 @@ export default {
     genTHead () {
       return this.$createElement('thead', {
 
-      }, this.genTR(this.days.map(o => {
-        return this.$createElement('th', o.substr(0, 1))
+      }, this.genTR(this.week.map((o, i) => {
+        return this.$createElement('th', Array.isArray(this.shortDays) && this.shortDays[i] || this.shortDays(o))
       })))
     },
     genTBody () {
@@ -53,7 +53,7 @@ export default {
       const day = new Date(
         this.tableYear,
         this.tableMonth
-      ).getDay()
+      ).getDay() - this.days.indexOf(this.firstDayOfWeek)
 
       for (let i = 0; i < day; i++) {
         rows.push(this.$createElement('td'))
@@ -65,7 +65,12 @@ export default {
             'class': {
               'btn btn--floating btn--small btn--flat': true,
               'btn--active': this.isActive(i),
-              'btn--current': this.isCurrent(i)
+              'btn--current': this.isCurrent(i),
+              'btn--light': this.dark
+            },
+            attrs: {
+              disabled: !this.isAllowed(new Date(this.tableYear, this.tableMonth, i, 12, 0, 0, 0)),
+              type: 'button'
             },
             domProps: {
               innerHTML: `<span class="btn__content">${i}</span>`
@@ -77,7 +82,7 @@ export default {
                 tableMonth = tableMonth < 10 ? `0${tableMonth}` : tableMonth
 
                 this.inputDate = `${this.tableYear}-${tableMonth}-${day}T12:00:00`
-                !this.actions && this.save()
+                this.$nextTick(() => !this.actions && this.save())
               }
             }
           })
@@ -94,7 +99,7 @@ export default {
       }
 
       children.length < 6 && children.push(this.genTR([
-        this.$createElement('td', { domProps: { innerHTML: '&nbsp;' }})
+        this.$createElement('td', { domProps: { innerHTML: '&nbsp;' } })
       ]))
 
       return this.$createElement('tbody', children)

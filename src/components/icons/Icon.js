@@ -1,8 +1,15 @@
+import Schemable from '../../mixins/schemable'
+import Contextualable from '../../mixins/contextualable'
+
 export default {
   functional: true,
 
+  mixins: [Schemable, Contextualable],
+
   props: {
-    light: Boolean,
+    disabled: Boolean,
+    fa: Boolean,
+    mdi: Boolean,
     large: Boolean,
     left: Boolean,
     medium: Boolean,
@@ -11,19 +18,41 @@ export default {
   },
 
   render (h, { props, data, children }) {
-    data.staticClass = data.staticClass ? `material-icons icon ${data.staticClass} ` : 'material-icons icon '
+    const icon = props.fa ? 'fa' : props.mdi ? 'mdi' : 'material-icons'
+    data.staticClass = data.staticClass ? `${icon} icon ${data.staticClass} ` : `${icon} icon`
+    data.attrs = data.attrs || {}
+
+    if (props.dark) data.staticClass += ' dark--text'
+    if (props.light) data.staticClass += ' light--text'
 
     const classes = {
-      'icon--dark': !props.light,
       'icon--large': props.large,
       'icon--left': props.left,
-      'icon--light': props.light,
       'icon--medium': props.medium,
       'icon--right': props.right,
-      'icon--x-large': props.xLarge
+      'icon--x-large': props.xLarge,
+      'primary--text': props.primary,
+      'secondary--text': props.secondary,
+      'success--text': props.success,
+      'info--text': props.info,
+      'warning--text': props.warning,
+      'error--text': props.error
     }
 
-    data.staticClass += Object.keys(classes).filter(k => classes[k]).join(' ')
+    const iconClasses = Object.keys(classes).filter(k => classes[k]).join(' ')
+    iconClasses && (data.staticClass += ` ${iconClasses}`)
+
+    if (props.fa || props.mdi) {
+      const comparison = props.fa ? 'fa' : 'mdi'
+      const text = children.pop().text
+
+      if (text.indexOf(' ') === -1) data.staticClass += ` ${comparison}-${text}`
+      else data.staticClass += ` ${comparison}-${text.split(' ').join('-')}`
+    }
+
+    if (props.disabled) {
+      data.attrs.disabled = props.disabled
+    }
 
     return h('i', data, children)
   }

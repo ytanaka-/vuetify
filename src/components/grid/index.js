@@ -1,22 +1,11 @@
 import { createSimpleFunctional } from '../../util/helpers'
 
-const Col = {
+const Grid = (name) => ({
   functional: true,
 
   render: (h, { data, children }) => {
-    data.staticClass = data.staticClass ? `col ${data.staticClass}` : 'col'
-    data.staticClass += ` ${Object.keys(data.attrs).join(' ')}`
-    delete data.attrs
+    data.staticClass = (`${name} ${data.staticClass || ''}`).trim()
 
-    return h('div', data, children)
-  }
-}
-
-const Layout = {
-  functional: true,
-
-  render: (h, { data, children }) => {
-    data.staticClass = data.staticClass ? `layout ${data.staticClass}` : 'layout'
     if (data.attrs) {
       data.staticClass += ` ${Object.keys(data.attrs).join(' ')}`
       delete data.attrs
@@ -24,50 +13,17 @@ const Layout = {
 
     return h('div', data, children)
   }
-}
+})
 
-const Container = {
-  functional: true,
+const Container = Grid('container')
+const Layout = Grid('layout')
+const Flex = Grid('flex')
 
-  props: {
-    fluid: Boolean
-  },
-
-  render (h, { props, data, children }) {
-    data.staticClass = data.staticClass ? `container ${data.staticClass}` : 'container'
-
-    if (props.fluid) data.staticClass += ' container--fluid'
-
-    return h('div', data, children)
-  }
-}
-
-const Main = {
-  functional: true,
-
-  props: {
-    row: Boolean
-  },
-
-  render (h, { props, data, children }) {
-    if (props.row) {
-      data.staticClass = data.staticClass ? `row ${data.staticClass}` : 'row'
-    }
-
-    return h('main', data, children)
-  }
-}
-
-const ColSpacer = createSimpleFunctional('col--spacer')
 const Spacer = createSimpleFunctional('spacer')
-const Content = createSimpleFunctional('content')
 
 export default {
-  Col,
-  ColSpacer,
+  Flex,
   Container,
-  Content,
   Spacer,
-  Layout,
-  Main
+  Layout
 }

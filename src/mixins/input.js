@@ -1,7 +1,11 @@
+import Schemable from './schemable'
+
 export default {
+  mixins: [Schemable],
+
   data () {
     return {
-      errors: [],
+      errorBucket: [],
       focused: false,
       tabFocused: false,
       lazyValue: this.value
@@ -11,16 +15,17 @@ export default {
   props: {
     appendIcon: String,
     appendIconCb: Function,
-    dark: Boolean,
     disabled: Boolean,
+    error: Boolean,
+    errorMessages: {
+      type: [String, Array],
+      default: () => []
+    },
     hint: String,
     hideDetails: Boolean,
-    persistentHint: Boolean,
     label: String,
-    light: {
-      type: Boolean,
-      default: true
-    },
+    persistentHint: Boolean,
+    placeholder: String,
     prependIcon: String,
     prependIconCb: Function,
     required: Boolean,
@@ -33,13 +38,12 @@ export default {
     },
     value: {
       required: false
-    },
-    placeholder: String
+    }
   },
 
   computed: {
     hasError () {
-      return this.errors.length !== 0
+      return this.validations.length || this.error
     },
     inputGroupClasses () {
       return Object.assign({
@@ -48,14 +52,14 @@ export default {
         'input-group--dirty': this.isDirty,
         'input-group--tab-focused': this.tabFocused,
         'input-group--disabled': this.disabled,
-        'input-group--light': this.light && !this.dark,
-        'input-group--dark': this.dark,
-        'input-group--error': this.hasError || this.errors.length > 0,
+        'input-group--error': this.hasError,
         'input-group--append-icon': this.appendIcon,
         'input-group--prepend-icon': this.prependIcon,
         'input-group--required': this.required,
         'input-group--hide-details': this.hideDetails,
         'input-group--placeholder': !!this.placeholder,
+        'dark--text': this.dark,
+        'light--text': this.light
       }, this.classes)
     },
     isDirty () {
@@ -79,6 +83,11 @@ export default {
       }
 
       return Object.assign(modifiers, model.modifiers)
+    },
+    validations () {
+      return (!Array.isArray(this.errorMessages)
+        ? [this.errorMessages]
+        : this.errorMessages).concat(this.errorBucket)
     }
   },
 
@@ -94,9 +103,12 @@ export default {
 
   methods: {
     genLabel () {
-      return this.$createElement('label', {}, this.label)
+      const data = {}
+
+      if (this.id) data.attrs = { for: this.id }
+
+      return this.$createElement('label', data, this.label)
     },
-    toggle () {},
     genMessages () {
       let messages = []
 
@@ -104,19 +116,17 @@ export default {
             this.focused ||
             this.hint &&
             this.persistentHint) &&
-          this.errors.length === 0
+          this.validations.length === 0
       ) {
         messages = [this.genHint()]
-      } else if (this.errors.length) {
-        messages = this.errors.map(i => this.genError(i))
+      } else if (this.validations.length) {
+        messages = this.validations.map(i => this.genError(i))
       }
 
       return this.$createElement(
         'transition-group',
         {
-          'class': {
-            'input-group__messages': true
-          },
+          'class': 'input-group__messages',
           props: {
             tag: 'div',
             name: 'slide-y-transition'
@@ -153,8 +163,8 @@ export default {
             [`input-group__${type}-icon`]: true,
             'input-group__icon-cb': hasCallback
           },
-          'nativeOn': {
-            'click': e => {
+          on: {
+            click: e => {
               hasCallback && cb(e)
             }
           }
@@ -179,8 +189,12 @@ export default {
             if ([9, 16].includes(e.keyCode)) {
               this.tabFocused = true
             }
+          },
+          keydown: e => {
+            if (!this.toggle) return
 
-            if (e.keyCode === 13) {
+            if ([13, 32].includes(e.keyCode)) {
+              e.preventDefault()
               this.toggle()
             }
           }
@@ -219,7 +233,7 @@ export default {
       return this.$createElement('div', data, children)
     },
     validate () {
-      this.errors = []
+      this.errorBucket = []
 
       this.rules.forEach(rule => {
         const valid = typeof rule === 'function'
@@ -227,7 +241,7 @@ export default {
           : rule
 
         if (valid !== true) {
-          this.errors.push(valid)
+          this.errorBucket.push(valid)
         }
       })
     }

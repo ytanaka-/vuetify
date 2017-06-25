@@ -1,17 +1,26 @@
 export default {
   methods: {
     genActivator () {
-      return this.$createElement('div', {
+      if (!this.$slots.activator) return null
+
+      const options = {
+        'class': 'menu__activator',
         ref: 'activator',
         slot: 'activator',
-        class: 'menu__activator',
-        on: { click: this.activatorClickHandler }
-      }, this.$slots.activator)
+        on: {}
+      }
+
+      if (this.openOnHover) {
+        options.on['mouseenter'] = this.mouseEnterHandler
+        options.on['mouseleave'] = this.mouseLeaveHandler
+      } else if (this.openOnClick) {
+        options.on['click'] = this.activatorClickHandler
+      }
+
+      return this.$createElement('div', options, this.$slots.activator)
     },
 
     genTransition () {
-      const children = []
-
       return this.$createElement(this.transition, {
         props: { origin: this.origin }
       }, [this.genContent()])
@@ -19,9 +28,9 @@ export default {
 
     genContent () {
       return this.$createElement('div', {
+        'class': (`menu__content ${this.contentClass}`).trim(),
         ref: 'content',
         style: this.styles,
-        'class': 'menu__content',
         directives: [{
           name: 'show',
           value: this.isContentActive
@@ -30,6 +39,13 @@ export default {
           click: e => {
             e.stopPropagation()
             if (this.closeOnContentClick) this.isActive = false
+          },
+          mouseenter: e => {
+            this.insideContent = true
+          },
+          mouseleave: e => {
+            this.insideContent = false
+            this.openOnHover && this.mouseLeaveHandler()
           }
         }
       }, [this.lazy && this.isBooted || !this.lazy ? this.$slots.default : null])

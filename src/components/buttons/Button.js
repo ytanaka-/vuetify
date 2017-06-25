@@ -1,11 +1,13 @@
 import Contextualable from '../../mixins/contextualable'
-import Toggleable from '../../mixins/toggleable'
+import Positionable from '../../mixins/positionable'
 import GenerateRouteLink from '../../mixins/route-link'
+import Schemable from '../../mixins/schemable'
+import Toggleable from '../../mixins/toggleable'
 
 export default {
   name: 'btn',
 
-  mixins: [Contextualable, GenerateRouteLink, Toggleable],
+  mixins: [Contextualable, GenerateRouteLink, Positionable, Schemable, Toggleable],
 
   props: {
     activeClass: {
@@ -13,12 +15,10 @@ export default {
       default: 'btn--active'
     },
     block: Boolean,
-    default: Boolean,
+    fab: Boolean,
     flat: Boolean,
-    floating: Boolean,
     icon: Boolean,
     large: Boolean,
-    light: Boolean,
     loading: Boolean,
     outline: Boolean,
     ripple: {
@@ -41,21 +41,26 @@ export default {
     classes () {
       return {
         'btn': true,
+        'btn--absolute': this.absolute,
         'btn--active': this.isActive,
         'btn--block': this.block,
-        'btn--dark': !this.light,
-        'btn--default': this.default,
-        'btn--disabled': this.disabled,
+        'btn--bottom': this.bottom,
         'btn--flat': this.flat,
-        'btn--floating': this.floating,
+        'btn--floating': this.fab,
+        'btn--fixed': this.fixed,
+        'btn--hover': this.hover,
         'btn--icon': this.icon,
         'btn--large': this.large,
-        'btn--light': this.light,
+        'btn--left': this.left,
         'btn--loader': this.loading,
         'btn--outline': this.outline,
         'btn--raised': !this.flat,
+        'btn--right': this.right,
         'btn--round': this.round,
         'btn--small': this.small,
+        'btn--top': this.top,
+        'dark--text dark--bg': this.dark,
+        'light--text light--bg': this.light,
         'primary': this.primary && !this.outline,
         'secondary': this.secondary && !this.outline,
         'success': this.success && !this.outline,
@@ -73,14 +78,18 @@ export default {
   },
 
   methods: {
-    genContent (h) {
-      return h('span', { 'class': 'btn__content' }, [this.$slots.default])
+    // Prevent focus to match md spec
+    click () {
+      !this.fab && this.$el.blur()
     },
-    genLoader (h) {
+    genContent () {
+      return this.$createElement('div', { 'class': 'btn__content' }, [this.$slots.default])
+    },
+    genLoader () {
       const children = []
 
       if (!this.$slots.loader) {
-        children.push(h('v-progress-circular', {
+        children.push(this.$createElement('v-progress-circular', {
           props: {
             indeterminate: true,
             size: 26
@@ -90,23 +99,16 @@ export default {
         children.push(this.$slots.loader)
       }
 
-      return h('span', { 'class': 'btn__loading' }, children)
+      return this.$createElement('span', { 'class': 'btn__loading' }, children)
     }
   },
 
   render (h) {
     const { tag, data } = this.generateRouteLink()
-    const children = []
-    
-    if (tag === 'button') {
-      data.attrs.type = this.type
-    }
+    const children = [this.genContent()]
 
-    children.push(this.genContent(h))
-
-    if (this.loading) {
-      children.push(this.genLoader(h))
-    }
+    tag === 'button' && (data.attrs.type = this.type)
+    this.loading && children.push(this.genLoader())
 
     return h(tag, data, children)
   }

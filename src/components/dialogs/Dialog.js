@@ -1,13 +1,19 @@
 import Bootable from '../../mixins/bootable'
+import Detachable from '../../mixins/detachable'
 import Overlayable from '../../mixins/overlayable'
 import Toggleable from '../../mixins/toggleable'
 
 export default {
   name: 'dialog',
 
-  mixins: [Bootable, Overlayable, Toggleable],
+  mixins: [Bootable, Detachable, Overlayable, Toggleable],
+
+  data: () => ({
+    app: null
+  }),
 
   props: {
+    disabled: Boolean,
     persistent: Boolean,
     fullscreen: Boolean,
     lazy: Boolean,
@@ -29,7 +35,7 @@ export default {
   computed: {
     classes () {
       return {
-        'dialog': true,
+        [(`dialog ${this.contentClass}`).trim()]: true,
         'dialog--active': this.isActive,
         'dialog--persistent': this.persistent,
         'dialog--fullscreen': this.fullscreen,
@@ -48,10 +54,17 @@ export default {
     isActive (val) {
       if (val) {
         !this.fullscreen && !this.hideOverlay && this.genOverlay()
+        this.fullscreen && this.hideScroll()
       } else {
-        this.removeOverlay()
+        if (!this.fullscreen) this.removeOverlay()
+        else this.showScroll()
       }
     }
+  },
+
+  mounted () {
+    this.isBooted = this.isActive
+    this.$vuetify.load(() => (this.isActive && this.genOverlay()))
   },
 
   methods: {
@@ -84,7 +97,7 @@ export default {
         on: {
           click: e => {
             e.stopPropagation()
-            this.isActive = !this.isActive
+            if (!this.disabled) this.isActive = !this.isActive
           }
         }
       }, [this.$slots.activator]))
@@ -92,10 +105,13 @@ export default {
 
     const dialog = h(this.computedTransition, {
       props: { origin: this.origin }
-    }, [h('div', data, [this.$slots.default])])
+    }, [h('div', data,
+      this.lazy && this.isBooted || !this.lazy ? this.$slots.default : null
+    )])
 
     children.push(h('div', {
-      'class': 'dialog__content'
+      'class': 'dialog__content',
+      ref: 'content'
     }, [dialog]))
 
     return h('div', {

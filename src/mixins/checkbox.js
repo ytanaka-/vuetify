@@ -40,7 +40,7 @@ export default {
 
   methods: {
     genLabel () {
-      return this.$createElement('label', { on: { click: this.toggle }}, this.label)
+      return this.$createElement('label', { on: { click: this.toggle } }, this.label)
     },
     toggle () {
       if (this.disabled) {
@@ -49,6 +49,7 @@ export default {
 
       let input = this.inputValue
       if (Array.isArray(input)) {
+        input = input.slice()
         const i = input.indexOf(this.value)
 
         if (i === -1) {

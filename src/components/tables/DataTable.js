@@ -1,18 +1,24 @@
 import Head from './mixins/head'
 import Body from './mixins/body'
 import Foot from './mixins/foot'
+import Progress from './mixins/progress'
+import { getObjectValueByPath } from '../../util/helpers'
 
 export default {
   name: 'datatable',
 
-  mixins: [Head, Body, Foot],
+  mixins: [Head, Body, Foot, Progress],
 
   data () {
     return {
-      desc: null,
-      page: 1,
-      sorting: null,
-      all: false
+      all: false,
+      searchLength: 0,
+      defaultPagination: {
+        page: 1,
+        rowsPerPage: 5,
+        descending: false,
+        totalItems: 0
+      }
     }
   },
 
@@ -26,13 +32,6 @@ export default {
       default: 'text'
     },
     hideActions: Boolean,
-    items: {
-      type: Array,
-      default: () => []
-    },
-    itemValue: {
-      default: 'value'
-    },
     noDataText: {
       type: String,
       default: 'No data available in table'
@@ -40,10 +39,6 @@ export default {
     noResultsText: {
       type: String,
       default: 'No matching records found'
-    },
-    rowsPerPage: {
-      type: [Number, String],
-      default: 5
     },
     rowsPerPageItems: {
       type: Array,
@@ -60,7 +55,7 @@ export default {
       type: String,
       default: 'Rows per page:'
     },
-    selectAll: Boolean,
+    selectAll: [Boolean, String],
     search: {
       required: false
     },
@@ -72,67 +67,113 @@ export default {
           val.toString().toLowerCase().indexOf(search) !== -1
       }
     },
+    customFilter: {
+      type: Function,
+      default: (items, search, filter) => {
+        search = search.toString().toLowerCase()
+        return items.filter(i => Object.keys(i).some(j => filter(i[j], search)))
+      }
+    },
+    customSort: {
+      type: Function,
+      default: (items, index, descending) => {
+        return items.sort((a, b) => {
+          let sortA = getObjectValueByPath(a, index)
+          let sortB = getObjectValueByPath(b, index)
+
+          if (descending) {
+            [sortA, sortB] = [sortB, sortA]
+          }
+
+          if (!isNaN(sortA) && !isNaN(sortB)) return (sortA - sortB)
+          else if (sortA == null && sortB == null) return 0;
+
+          [sortA, sortB] = [sortA, sortB].map(s => s.toLocaleLowerCase())
+          if (sortA > sortB) return 1
+          if (sortA < sortB) return -1
+
+          return 0
+        })
+      }
+    },
     value: {
       type: Array,
       default: () => []
+    },
+    items: {
+      type: Array,
+      required: true,
+      default: () => []
+    },
+    totalItems: {
+      type: Number,
+      default: null
+    },
+    loading: {
+      type: [Boolean, String],
+      default: false
+    },
+    selectedKey: {
+      type: String,
+      default: 'id'
+    },
+    pagination: {
+      type: Object,
+      default: null
     }
   },
 
   computed: {
+    computedPagination () {
+      return this.pagination || this.defaultPagination
+    },
+    itemsLength () {
+      return this.totalItems || this.search && this.searchLength || this.items.length
+    },
     indeterminate () {
-      return this.selectAll && this.someItems && !this.everyItem
+      return this.selectAll !== false && this.someItems && !this.everyItem
     },
     everyItem () {
-      return this.value.every(i => i[this.itemValue])
+      return this.filteredItems.length && this.filteredItems.every(i => this.isSelected(i))
     },
     someItems () {
-      return this.value.some(i => i[this.itemValue])
+      return this.filteredItems.some(i => this.isSelected(i))
     },
     pageStart () {
-      const page = this.rowsPerPage === Object(this.rowsPerPage)
-        ? this.rowsPerPage.value
-        : this.rowsPerPage
-      return page === -1 ? 0 : (this.page - 1) * page
+      const page = this.computedPagination.rowsPerPage === Object(this.computedPagination.rowsPerPage)
+        ? this.computedPagination.rowsPerPage.value
+        : this.computedPagination.rowsPerPage
+      return page === -1 ? 0 : (this.computedPagination.page - 1) * page
     },
     pageStop () {
-      const page = this.rowsPerPage === Object(this.rowsPerPage)
-        ? this.rowsPerPage.value
-        : this.rowsPerPage
-      return page === -1 ? this.value.length : this.page * page
+      const page = this.computedPagination.rowsPerPage === Object(this.computedPagination.rowsPerPage)
+        ? this.computedPagination.rowsPerPage.value
+        : this.computedPagination.rowsPerPage
+      return page === -1 ? this.itemsLength : this.computedPagination.page * page
     },
     filteredItems () {
-      let items = this.value.slice()
+      if (this.totalItems) return this.items
+
+      let items = this.items.slice()
       const hasSearch = typeof this.search !== 'undefined' && this.search !== null
 
       if (hasSearch) {
-        const search = this.search.toString().toLowerCase()
-
-        items = items.filter(i => Object.keys(i).some(j => this.filter(i[j], search)))
+        items = this.customFilter(items, this.search, this.filter)
+        this.searchLength = items.length
       }
 
-      items = items.sort((a, b) => {
-        const sortA = a[this.sorting]
-        const sortB = b[this.sorting]
+      items = this.customSort(items, this.computedPagination.sortBy, this.computedPagination.descending)
 
-        if (this.desc) {
-          if (sortA < sortB) return 1
-          if (sortA > sortB) return -1
-          return 0
-        } else {
-          if (sortA < sortB) return -1
-          if (sortA > sortB) return 1
-          return 0
-        }
-      })
-
-      return this.hideActions ? items : items.slice(this.pageStart, this.pageStop)
+      return this.hideActions && !this.pagination ? items : items.slice(this.pageStart, this.pageStop)
+    },
+    selected () {
+      const selected = {}
+      this.value.forEach(i => (selected[i[this.selectedKey]] = true))
+      return selected
     }
   },
 
   watch: {
-    rowsPerPage () {
-      this.page = 1
-    },
     indeterminate (val) {
       if (val) this.all = true
     },
@@ -140,42 +181,51 @@ export default {
       if (!val) this.all = false
     },
     search () {
-      this.page = 1
+      this.updatePagination({ page: 1 })
+    },
+    everyItem (val) {
+      if (val) this.all = true
+    },
+    itemsLength () {
+      this.updatePagination({ totalItems: this.itemsLength })
     }
   },
 
   methods: {
+    updatePagination (val) {
+      if (this.pagination) return this.$emit('update:pagination', Object.assign({}, this.pagination, val))
+      else (this.defaultPagination = Object.assign({}, this.defaultPagination, val))
+    },
+    isSelected (item) {
+      return this.selected[item[this.selectedKey]]
+    },
     sort (index) {
-      if (this.sorting === null) {
-        this.sorting = index
-        this.desc = true
-      } else if (this.sorting === index && this.desc) {
-        this.desc = false
-      } else if (this.sorting !== index) {
-        this.sorting = index
-        this.desc = true
+      if (this.computedPagination.sortBy === null) {
+        this.updatePagination({ sortBy: index, descending: false })
+      } else if (this.computedPagination.sortBy === index && !this.computedPagination.descending) {
+        this.updatePagination({ descending: true })
+      } else if (this.computedPagination.sortBy !== index) {
+        this.updatePagination({ sortBy: index, descending: false })
       } else {
-        this.sorting = null
-        this.desc = null
+        this.updatePagination({ sortBy: null, descending: null })
       }
     },
     genTR (children, data = {}) {
       return this.$createElement('tr', data, children)
     },
-    toggle (val) {
-      this.all = val
+    toggle (value) {
+      const selected = Object.assign({}, this.selected)
+      this.filteredItems.forEach(i => selected[i[this.selectedKey]] = value)
 
-      this.$emit('input', this.value.map(i => {
-        i[this.itemValue] = this.filteredItems.includes(i) ? val : false
-
-        return i
-      }))
+      this.$emit('input', this.items.filter(i => selected[i[this.selectedKey]]))
     }
   },
 
-  mounted () {
-    const header = this.headers.find(h => !('sortable' in h) || h.sortable)
-    this.sorting = !this.sorting ? header.value : this.sorting
+  created () {
+    const firstSortable = this.headers.find(h => !('sortable' in h) || h.sortable)
+    this.defaultPagination.sortBy = firstSortable ? firstSortable.value : null
+
+    this.updatePagination(Object.assign({}, this.defaultPagination, this.pagination, { totalItems: this.itemsLength }))
   },
 
   render (h) {
@@ -183,10 +233,11 @@ export default {
       h('table', {
         'class': {
           'datatable table': true,
-          'datatable--select-all': this.selectAll
+          'datatable--select-all': this.selectAll !== false
         }
       }, [
         this.genTHead(),
+        this.genTProgress(),
         this.genTBody(),
         this.hideActions ? null : this.genTFoot()
       ])

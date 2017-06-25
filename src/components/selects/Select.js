@@ -13,7 +13,7 @@ export default {
       inputValue: this.value,
       isBooted: false,
       lastItem: 20,
-      menuActive: false
+      isActive: false
     }
   },
 
@@ -52,19 +52,35 @@ export default {
     multiLine: Boolean,
     offset: Boolean,
     singleLine: Boolean,
-    top: Boolean
+    top: Boolean,
+    returnObject: Boolean,
+    overflow: Boolean,
+    segmented: Boolean,
+    editable: Boolean
   },
 
   computed: {
     classes () {
       return {
         'input-group--text-field input-group--select': true,
+        'input-group--auto': this.auto,
+        'input-group--overflow': this.overflow,
+        'input-group--segmented': this.segmented,
+        'input-group--editable': this.editable,
         'input-group--autocomplete': this.autocomplete,
-        'input-group--single-line': this.singleLine,
+        'input-group--single-line': this.singleLine || this.isDropdown,
         'input-group--multi-line': this.multiLine,
         'input-group--chips': this.chips,
         'input-group--multiple': this.multiple
       }
+    },
+    computedContentClass () {
+      const children = [
+        this.auto ? 'menu__content--auto' : '',
+        this.isDropdown ? 'menu__content--dropdown' : ''
+      ]
+
+      return children.join(' ')
     },
     filteredItems () {
       const items = this.autocomplete && this.searchValue
@@ -75,6 +91,9 @@ export default {
     },
     isDirty () {
       return this.selectedItems.length
+    },
+    isDropdown () {
+      return this.segmented || this.overflow || this.editable
     },
     selectedItems () {
       if (this.inputValue === null) return []
@@ -96,9 +115,9 @@ export default {
     value (val) {
       this.inputValue = val
       this.validate()
-      this.autocomplete && this.$refs.menu.activate()
+      this.autocomplete && this.$nextTick(this.$refs.menu.updateDimensions)
     },
-    menuActive (val) {
+    isActive (val) {
       this.isBooted = true
       this.lastItem += !val ? 20 : 0
 
@@ -107,16 +126,18 @@ export default {
     },
     isBooted () {
       this.$nextTick(() => {
-        this.content = this.$refs.menu.$el.querySelector('.menu__content')
-
-        this.content.addEventListener('scroll', this.onScroll, false)
+        this.content && this.content.addEventListener('scroll', this.onScroll, false)
       })
     }
   },
 
+  mounted () {
+    this.content = this.$refs.menu.$refs.content
+  },
+
   beforeDestroy () {
     if (this.isBooted) {
-      this.content.removeEventListener('scroll', this.onScroll, false)
+      this.content && this.content.removeEventListener('scroll', this.onScroll, false)
     }
   },
 
@@ -132,11 +153,11 @@ export default {
       return item === Object(item) ? item[this.itemText] : item
     },
     getValue (item) {
-      return item === Object(item) ? item[this.itemValue] : item
+      return item === Object(item) && (this.itemValue in item) ? item[this.itemValue] : item
     },
     onScroll () {
-      if (!this.menuActive) {
-        setTimeout(() => (this.content.scrollTop = 0), 50)
+      if (!this.isActive) {
+        requestAnimationFrame(() => (this.content.scrollTop = 0))
       } else {
         const showMoreItems = (
           this.content.scrollHeight -
@@ -151,19 +172,13 @@ export default {
     },
     selectItem (item) {
       if (!this.multiple) {
-        this.inputValue = item
-      }
-
-      if (this.inputValue === null) {
-        this.inputValue = [item]
-      }
-
-      if (this.multiple) {
+        this.inputValue = this.returnObject ? item : this.getValue(item)
+      } else {
         const inputValue = this.inputValue.slice()
         const i = this.inputValue.findIndex(i => this.getValue(i) === this.getValue(item))
 
         i !== -1 && inputValue.splice(i, 1) || inputValue.push(item)
-        this.inputValue = inputValue
+        this.inputValue = inputValue.map(i => this.returnObject ? i : this.getValue(i))
       }
 
       if (this.autocomplete) {
@@ -180,7 +195,14 @@ export default {
       this.genSelectionsAndSearch(),
       this.genMenu()
     ], {
-      ref: 'activator'
+      ref: 'activator',
+      directives: [{
+        name: 'click-outside',
+        value: () => (this.isActive = false)
+      }],
+      on: {
+        keydown: e => this.$refs.menu.changeListIndex(e)
+      }
     })
   }
 }

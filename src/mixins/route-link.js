@@ -9,7 +9,8 @@ export default {
     replace: Boolean,
     ripple: Boolean,
     router: Boolean,
-    tag: String
+    tag: String,
+    target: String
   },
 
   methods: {
@@ -20,7 +21,7 @@ export default {
       const options = this.to || this.href
 
       const data = {
-        attrs: {},
+        attrs: { disabled: this.disabled },
         class: this.classes,
         props: {},
         directives: [{
@@ -49,6 +50,7 @@ export default {
 
         if (tag === 'a') {
           data.attrs.href = options || 'javascript:;'
+          if (this.target) data.attrs.target = this.target
         }
 
         data.on = { click: this.click }

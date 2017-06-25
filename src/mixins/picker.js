@@ -7,13 +7,17 @@ export default {
 
   props: {
     actions: Boolean,
-    dark: Boolean,
     landscape: Boolean,
     noTitle: Boolean,
     scrollable: Boolean,
     value: {
       required: true
-    }
+    },
+    light: {
+      type: Boolean,
+      default: true
+    },
+    dark: Boolean
   },
 
   methods: {

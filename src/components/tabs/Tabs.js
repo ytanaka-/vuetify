@@ -1,23 +1,46 @@
+import Schemable from '../../mixins/schemable'
+
 export default {
   name: 'tabs',
+
+  mixins: [Schemable],
+
+  provide () {
+    return {
+      slider: this.slider,
+      tabClick: this.tabClick,
+      isScrollable: this.isScrollable
+    }
+  },
 
   data () {
     return {
       activators: [],
-      isActive: null,
+      activeIndex: null,
+      isMobile: false,
       reverse: false,
       target: null,
       resizeDebounce: {},
-      targetEl: null
+      tabsSlider: null,
+      targetEl: null,
+      tabsContainer: null
     }
   },
 
   props: {
     centered: Boolean,
+    fixed: Boolean,
     grow: Boolean,
     icons: Boolean,
-    scrollBars: Boolean,
-    value: String
+    mobileBreakPoint: {
+      type: [Number, String],
+      default: 1024
+    },
+    value: String,
+    scrollable: {
+      type: Boolean,
+      default: true
+    }
   },
 
   computed: {
@@ -25,9 +48,12 @@ export default {
       return {
         'tabs': true,
         'tabs--centered': this.centered,
+        'tabs--fixed': this.fixed,
         'tabs--grow': this.grow,
         'tabs--icons': this.icons,
-        'tabs--scroll-bars': this.scrollBars
+        'tabs--mobile': this.isMobile,
+        'dark--text': this.dark,
+        'light--text': this.light
       }
     }
   },
@@ -36,81 +62,116 @@ export default {
     value () {
       this.tabClick(this.value)
     },
-    isActive () {
-      this.activators.forEach(i => {
-        i.toggle(this.target)
+    activeIndex () {
+      const activators = this.$slots.activators
 
-        if (i.isActive) {
-          this.slider(i.$el)
-        }
-      })
+      if (!activators ||
+        !activators.length ||
+        (activators.length &&
+          !activators[0].componentInstance.$children)) return
 
-      this.$refs.content.$children.forEach(i => i.toggle(this.target, this.reverse))
+      activators[0].componentInstance.$children
+        .filter(i => i.$options._componentTag === 'v-tabs-item')
+        .forEach(i => i.toggle(this.target))
+
+      this.$refs.content && this.$refs.content.$children.forEach(i => i.toggle(this.target, this.reverse, this.isBooted))
       this.$emit('input', this.target)
+      this.isBooted = true
     }
   },
 
   mounted () {
     this.$vuetify.load(() => {
-      this.init()
-      window.addEventListener('resize', this.resize, false)
+      window.addEventListener('resize', this.resize, { passive: true })
+      this.resize()
+
+      const activators = this.$slots.activators
+
+      if (!activators || !activators.length || !activators[0].componentInstance.$children) return
+
+      const bar = activators[0].componentInstance.$children
+      // // This is a workaround to detect if link is active
+      // // when being used as a router or nuxt link
+      const i = bar.findIndex(t => {
+        return t.$el.firstChild.classList.contains('tabs__item--active')
+      })
+
+      const tab = this.value || (bar[i !== -1 ? i : 0] || {}).action
+
+      tab && this.tabClick(tab) && this.resize()
     })
   },
 
   beforeDestroy () {
-    window.removeEventListener('resize', this.resize, false)
+    window.removeEventListener('resize', this.resize, { passive: true })
   },
 
   methods: {
-    init () {
-      this.activators = this.$refs.activators.$children.filter(i => i.$options._componentTag === 'v-tab-item')
-      setTimeout(() => {
-        this.tabClick(this.value || this.activators[0].target)
-      }, 200)
+    isScrollable () {
+      return this.scrollable
     },
     resize () {
       clearTimeout(this.resizeDebounce)
 
       this.resizeDebounce = setTimeout(() => {
+        this.isMobile = window.innerWidth < this.mobileBreakPoint
         this.slider()
-      }, 250)
+      }, 50)
     },
     slider (el) {
+      this.tabsSlider = this.tabsSlider || this.$el.querySelector('.tabs__slider')
+      this.tabsContainer = this.tabsContainer || this.$el.querySelector('.tabs__container')
+
+      if (!this.tabsSlider || !this.tabsContainer) return
+
       this.targetEl = el || this.targetEl
-      this.$refs.slider.style.width = `${this.targetEl.clientWidth}px`
-      this.$refs.slider.style.left = `${this.targetEl.offsetLeft}px`
+
+      if (!this.targetEl) return
+
+      // Gives DOM time to paint when
+      // processing slider for
+      // dynamic tabs
+      this.$nextTick(() => {
+        // #684 Calculate width as %
+        const width = this.targetEl.scrollWidth / this.tabsContainer.clientWidth * 100
+
+        this.tabsSlider.style.width = `${width}%`
+        this.tabsSlider.style.left = `${this.targetEl.offsetLeft}px`
+      })
     },
     tabClick (target) {
       this.target = target
 
-      if (!this.$refs.content.length) {
-        this.isActive = target
+      if (!this.$refs.content) {
+        this.activeIndex = target
         return
       }
 
       this.$nextTick(() => {
         const nextIndex = this.$refs.content.$children.findIndex(i => i.id === this.target)
-        this.reverse = nextIndex < this.isActive
-        this.isActive = nextIndex
+        this.reverse = nextIndex < this.activeIndex
+        this.activeIndex = nextIndex
       })
     }
   },
 
   render (h) {
-    const tabs = h('v-tabs-tabs', {
-      ref: 'activators'
-    }, [
-      h('v-tabs-slider', { ref: 'slider' }),
-      this.$slots.activators
-    ])
+    const content = []
+    const slot = []
+    const iter = (this.$slots.default || [])
 
-    const items = h('v-tabs-items', {
-      'class': 'tabs__items',
+    iter.forEach(c => {
+      if (!c.componentOptions) slot.push(c)
+      else if (c.componentOptions.tag === 'v-tabs-content') content.push(c)
+      else slot.push(c)
+    })
+
+    const tabs = content.length ? h('v-tabs-items', {
       ref: 'content'
-    }, [this.$slots.content])
+    }, content) : null
 
     return h('div', {
       'class': this.classes
-    }, [this.$slots.default, tabs, items])
+    }, [slot, this.$slots.activators, tabs])
   }
 }

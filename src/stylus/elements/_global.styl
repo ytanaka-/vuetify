@@ -1,7 +1,6 @@
 html, body
   height: 100%
   min-height: 100%
-  overflow: hidden
   position: relative
 
 html
@@ -10,17 +9,24 @@ html
   -webkit-font-smoothing: antialiased
   -moz-osx-font-smoothing: grayscale
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0)
+  overflow-x: hidden
 
 body
   font-family: $body-font-family
   line-height: $line-height-root
 
+header
+  transition: .3s padding $transition.swing
+  width: 100%
+  z-index: 1
+
 main
-  display: flex
-  flex: 1
-  max-height: 100vh
-  min-width: 0
-  overflow: hidden
+  transition: .3s padding $transition.swing
+  will-change: padding-left
 
 a
   color: $theme.primary
+
+::-ms-clear
+::-ms-reveal
+  display: none

@@ -4,23 +4,18 @@ export default {
       const data = {
         ref: 'menu',
         props: {
-          auto: this.auto,
-          closeOnContentClick: !this.multiple,
-          disabled: this.disabled,
-          offsetY: this.autocomplete || this.offset,
-          value: this.menuActive,
-          nudgeBottom: 2,
-          nudgeTop: -11,
-          nudgeYAuto: 2,
-          nudgeXAuto: this.multiple ? -40 : -16,
-          nudgeWidth: 25,
-          maxHeight: this.maxHeight,
           activator: this.$refs.activator,
-          top: true
+          auto: this.auto,
+          closeOnClick: false,
+          closeOnContentClick: !this.multiple,
+          contentClass: this.computedContentClass,
+          disabled: this.disabled,
+          maxHeight: this.maxHeight,
+          nudgeTop: this.isDropdown ? 22 : 0,
+          offsetY: this.autocomplete || this.offset || this.isDropdown,
+          value: this.isActive
         },
-        on: {
-          input: val => (this.menuActive = val)
-        }
+        on: { input: val => (this.isActive = val) }
       }
 
       return this.$createElement('v-menu', data, [this.genList()])
@@ -36,7 +31,7 @@ export default {
             input: e => (this.searchValue = e.target.value),
             keyup: e => {
               if (e.keyCode === 27) {
-                this.menuActive = false
+                this.isActive = false
                 e.target.blur()
               }
             }
@@ -95,13 +90,15 @@ export default {
       }, `${this.getText(item)}${comma ? ', ' : ''}`)
     },
     genList () {
-      return this.$createElement('v-list', {
-        ref: 'list'
-      }, this.filteredItems.map(o => {
-        if (o.header) return this.genHeader(o)
-        if (o.divider) return this.genDivider(o)
-        else return this.genListItem(o)
-      }))
+      return this.$createElement('v-card', [
+        this.$createElement('v-list', {
+          ref: 'list'
+        }, this.filteredItems.map(o => {
+          if (o.header) return this.genHeader(o)
+          if (o.divider) return this.genDivider(o)
+          else return this.genTile(o)
+        }))
+      ])
     },
     genHeader (item) {
       return this.$createElement('v-subheader', {
@@ -113,18 +110,15 @@ export default {
         props: item
       })
     },
-    genListItem (item) {
-      return this.$createElement('v-list-item', [this.genTile(item)])
-    },
     genTile (item) {
       const active = this.selectedItems.indexOf(item) !== -1
       const data = {
-        'class': {
-          'list__tile--active': active,
-          'list__tile--select-multi': this.multiple
-        },
         nativeOn: { click: () => this.selectItem(item) },
-        props: { avatar: item === Object(item) && 'avatar' in item }
+        props: {
+          avatar: item === Object(item) && 'avatar' in item,
+          ripple: true,
+          value: active
+        }
       }
 
       if (this.$scopedSlots.item) {
@@ -148,7 +142,7 @@ export default {
       }
 
       return this.$createElement('v-list-tile-action', data, [
-        this.$createElement('v-checkbox', { props: { inputValue: active }})
+        this.$createElement('v-checkbox', { props: { inputValue: active } })
       ])
     },
     genContent (item) {

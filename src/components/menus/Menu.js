@@ -1,37 +1,57 @@
 import Activator from './mixins/activator'
+import Detachable from '../../mixins/detachable'
 import Generators from './mixins/generators'
 import Position from './mixins/position'
 import Utils from './mixins/utils'
 import Toggleable from '../../mixins/toggleable'
-import { debounce } from '../../util/helpers'
+import Keyable from './mixins/keyable'
 
 export default {
   name: 'menu',
 
-  mixins: [Activator, Generators, Position, Utils, Toggleable],
+  mixins: [
+    Activator,
+    Detachable,
+    Generators,
+    Keyable,
+    Position,
+    Utils,
+    Toggleable
+  ],
 
   data () {
     return {
-      window: {},
-      windowResizeHandler: () => {
-        this.isBooted = false
-        debounce(this.activate, 200)
-      },
+      autoIndex: null,
       dimensions: {
         activator: {
-          top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0, offsetTop: 0
+          top: 0, left: 0,
+          bottom: 0, right: 0,
+          width: 0, height: 0,
+          offsetTop: 0, scrollHeight: 0
         },
         content: {
-          top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0, offsetTop: 0
+          top: 0, left: 0,
+          bottom: 0, right: 0,
+          width: 0, height: 0,
+          offsetTop: 0, scrollHeight: 0
         },
         list: null,
         selected: null
       },
       direction: { vert: 'bottom', horiz: 'right' },
-      position: { left: '0px', top: '0px', right: 'auto', bottom: 'auto' },
       isContentActive: false,
       isBooted: false,
-      maxHeightAutoDefault: '200px'
+      maxHeightAutoDefault: '200px',
+      resizeTimeout: {},
+      startIndex: 3,
+      stopIndex: 0,
+      tileLength: 0,
+      window: {},
+      absoluteX: 0,
+      absoluteY: 0,
+      insideContent: false,
+      hasJustFocused: false,
+      focusedTimeout: {}
     }
   },
 
@@ -46,14 +66,6 @@ export default {
     disabled: Boolean,
     maxHeight: {
       default: 'auto'
-    },
-    nudgeXAuto: {
-      type: Number,
-      default: -16
-    },
-    nudgeYAuto: {
-      type: Number,
-      default: -18
     },
     nudgeTop: {
       type: Number,
@@ -79,6 +91,10 @@ export default {
       type: Boolean,
       default: true
     },
+    openOnHover: {
+      type: Boolean,
+      default: false
+    },
     lazy: Boolean,
     closeOnClick: {
       type: Boolean,
@@ -91,9 +107,6 @@ export default {
     activator: {
       default: null
     },
-    activatorXY: {
-      default: null
-    },
     origin: {
       type: String,
       default: 'top left'
@@ -101,161 +114,119 @@ export default {
     transition: {
       type: String,
       default: 'v-menu-transition'
+    },
+    positionX: {
+      type: Number,
+      default: null
+    },
+    positionY: {
+      type: Number,
+      default: null
+    },
+    positionAbsolutely: {
+      type: Boolean,
+      default: false
+    },
+    minWidth: {
+      type: Number,
+      default: null
     }
   },
 
   computed: {
-    offset () {
-      const { activator: a, content: c } = this.dimensions
-      const { direction, offsetX, offsetY, offsetAuto: auto } = this
-      const { nudgeTop: nt, nudgeBottom: nb, nudgeRight: nr, nudgeLeft: nl } = this
-
-      const horiz = direction.horiz === 'left'
-          ? offsetX ? a.left - c.right + nl : a.right - c.right + auto.horiz
-          : offsetX ? a.right - c.left + nr : a.left - c.left + auto.horiz
-      const vert = direction.vert === 'top'
-          ? offsetY ? a.top - c.bottom + nt : a.bottom - c.bottom + auto.vert
-          : offsetY ? a.bottom - c.top + nb : a.top - c.top + auto.vert
-      return { horiz, vert }
+    calculatedMinWidth () {
+      return this.minWidth !== null
+        ? this.minWidth
+        : this.dimensions.activator.width + this.nudgeWidth + (this.auto ? 16 : 0)
     },
-
-    offsetAuto () {
-      if (!this.auto) return { horiz: 0, vert: 0 }
-      if (!this.dimensions.selected) return { horiz: this.nudgeXAuto, vert: this.nudgeYAuto }
-
-      const { activator: a, content: c, selected: s, list } = this.dimensions
-      const offsetBottom = list.height - s.height - s.offsetTop
-      const scrollMiddle = (c.height - s.height) / 2
-      const horiz = this.nudgeXAuto
-      let vert = (a.height - c.height + this.nudgeYAuto) / 2
-
-      vert += s.offsetTop < scrollMiddle ? scrollMiddle - s.offsetTop : 0
-      vert += offsetBottom < scrollMiddle ? offsetBottom - scrollMiddle : 0
-
-      return { horiz, vert }
-    },
-
-    screenDist () {
-      const { activator: a } = this.dimensions
-      const { innerHeight: innerH, innerWidth: innerW } = this.window
-      const { nudgeTop: nt, nudgeBottom: nb, nudgeRight: nr, nudgeLeft: nl } = this
-      const dist = {}
-
-      dist.top = this.offsetY ? a.top + nt : a.bottom
-      dist.left = this.offsetX ? a.left + nl : a.right
-      dist.bottom = this.offsetY ? innerH - a.bottom - nb : innerH - a.top
-      dist.right = this.offsetX ? innerW - a.right - nr : innerW - a.left
-      dist.horizMax = dist.left > dist.right ? dist.left : dist.right
-      dist.horizMaxDir = dist.left > dist.right ? 'left' : 'right'
-      dist.vertMax = dist.top > dist.bottom ? dist.top : dist.bottom
-      dist.vertMaxDir = dist.top > dist.bottom ? 'top' : 'bottom'
-
-      return dist
-    },
-
-    screenOverflow () {
-      const { content: c } = this.dimensions
-      const left = c.left + this.offset.horiz
-      const top = c.top + this.offset.vert
-
-      const horiz = this.auto && left + c.width > this.window.innerWidth
-          ? (left + c.width) - this.window.innerWidth
-          : this.auto && left < 0
-            ? left
-            : 0
-      const vert = this.auto && top + c.height > this.window.innerHeight
-          ? (top + c.height) - this.window.innerHeight
-          : this.auto && top < 0
-            ? top
-            : 0
-
-      return { horiz, vert }
-    },
-
     styles () {
-      const { top, left, right, bottom } = this.position
-
       return {
-        top: isNaN(top) ? top : `${top}px`,
-        left: isNaN(left) ? left : `${left}px`,
-        right: isNaN(right) ? right : `${right}px`,
-        bottom: isNaN(bottom) ? bottom : `${bottom}px`
+        maxHeight: this.auto ? '200px' : isNaN(this.maxHeight) ? this.maxHeight : `${this.maxHeight}px`,
+        minWidth: `${this.calculatedMinWidth}px`,
+        top: `${this.calcTop()}px`,
+        left: `${this.calcLeft()}px`
       }
+    },
+    hasActivator () {
+      return !!this.$slots.activator || this.activator
     }
   },
 
   watch: {
-    isActive (val) {
-      if (this.isBooted && val) return this.startTransition()
-
-      if (val) this.activate()
-      else this.isContentActive = false
-    },
-
     activator (newActivator, oldActivator) {
       this.removeActivatorEvents(oldActivator)
       this.addActivatorEvents(newActivator)
     },
-
-    activatorXY (val) {
-      this.isActive = true
+    disabled (val) {
+      val && this.deactivate()
     },
+    hasJustFocused (val) {
+      if (!val) return
 
+      clearTimeout(this.focusedTimeout)
+      this.focusedTimeout = setTimeout(() => (this.hasJustFocused = false), 100)
+    },
+    isActive (val) {
+      if (this.disabled) return
+
+      val && this.activate() || this.deactivate()
+    },
     windowResizeHandler () {
       this.isBooted = false
     }
   },
 
   mounted () {
-    this.addActivatorEvents(this.activator)
+    window.addEventListener('resize', this.onResize, { passive: true })
   },
 
   beforeDestroy () {
-    this.removeActivatorEvents(this.activator)
+    window.removeEventListener('resize', this.onResize, { passive: true })
     window.removeEventListener('resize', this.windowResizeHandler)
   },
 
   methods: {
     activate () {
-      if (!this.isActive || this.disabled) return
-      this.isBooted = true
+      this.insideContent = true
       this.initWindow()
-      this.setDirection()
-      this.updatePosition()
+      this.getTiles()
+      this.updateDimensions()
+      requestAnimationFrame(this.startTransition)
     },
-
-    initWindow () {
-      if (this.window === window) return
-
-      this.window = window
-      this.window.addEventListener('resize', this.windowResizeHandler)
+    deactivate () {
+      this.isContentActive = false
     },
-    
+    onResize () {
+      clearTimeout(this.resizeTimeout)
+      if (!this.isActive) return
+      this.resizeTimeout = setTimeout(this.updateDimensions, 200)
+    },
     startTransition () {
-      this.$refs.content.offsetHeight // <-- Force DOM to repaint first.
-      this.isContentActive = true     // <-- Trigger v-show on content.
+      this.isContentActive = true
+      requestAnimationFrame(this.calculateScroll)
     }
   },
 
   render (h) {
+    const directives = !this.openOnHover ? [{
+      name: 'click-outside',
+      value: () => this.closeOnClick
+    }] : []
+
     const data = {
-      'class': {
-        'menu': true
-      },
-      directives: [{
-        name: 'click-outside',
-        value: e => {
-          if (!this.closeOnClick) return false
-          const a = this.activator
-          if (a && (a === e.target || a.contains(e.target))) return false
-          return true
-        }
-      }],
+      'class': 'menu',
+      directives,
       on: {
-        'keyup': e => { if (e.keyCode === 27) this.isActive = false }
+        keydown: e => {
+          if (e.keyCode === 27) this.isActive = false
+          else this.changeListIndex(e)
+        }
       }
     }
 
-    return h('div', data, [this.genActivator(h), this.genTransition(h)])
+    return h('div', data, [
+      this.genActivator(),
+      this.genTransition()
+    ])
   }
 }
