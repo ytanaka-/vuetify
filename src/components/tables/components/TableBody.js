@@ -3,16 +3,18 @@ import Filterable from '~mixins/filterable'
 export default {
   name: 'table-body',
 
+  inheritAttrs: false,
+
   inject: ['isSelected'],
 
   mixins: [Filterable],
 
   props: {
-    filteredItems: Array,
     noResultsText: {
       type: String,
       default: 'No matching records found'
     },
+    items: Array,
     itemsLength: Number
   },
 
@@ -30,15 +32,15 @@ export default {
 
     if (!this.itemsLength) {
       children = [this.genEmptyBody(this.noDataText)]
-    } else if (!this.filteredItems.length) {
+    } else if (!this.items.length) {
       children = [this.genEmptyBody(this.noResultsText)]
     } else {
-      children = this.filteredItems.map((item, index) => {
+      children = this.items.map((item, index) => {
         const props = { item, index }
 
         Object.defineProperty(props, 'selected', {
           get: () => this.isSelected(item),
-          set: (value) => this.$emit('toggle', { item, value })
+          set: (value) => this.$emit('toggleRow', { item, value })
         })
 
         const row = this.$scopedSlots.items(props)

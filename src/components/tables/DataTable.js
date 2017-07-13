@@ -5,7 +5,7 @@ import TableBody from './components/TableBody'
 import TableFooter from './components/TableFooter'
 
 export default {
-  inheritAttrs: true,
+  inheritAttrs: false,
 
   name: 'datatable',
 
@@ -17,7 +17,6 @@ export default {
 
   data () {
     return {
-      all: false,
       searchLength: 0,
       defaultPagination: {
         page: 1,
@@ -32,10 +31,6 @@ export default {
     headers: {
       type: Array,
       default: () => []
-    },
-    headerText: {
-      type: String,
-      default: 'text'
     },
     hideActions: Boolean,
     search: {
@@ -156,7 +151,7 @@ export default {
     isSelected (item) {
       return this.selected[item[this.selectedKey]]
     },
-    sort (index) {
+    sortItems (index) {
       if (this.computedPagination.sortBy === null) {
         this.updatePagination({ sortBy: index, descending: false })
       } else if (this.computedPagination.sortBy === index && !this.computedPagination.descending) {
@@ -167,11 +162,23 @@ export default {
         this.updatePagination({ sortBy: null, descending: null })
       }
     },
-    toggle (value) {
+    toggleAll (value) {
       const selected = Object.assign({}, this.selected)
       this.filteredItems.forEach(i => selected[i[this.selectedKey]] = value)
 
       this.$emit('input', this.items.filter(i => selected[i[this.selectedKey]]))
+    },
+    toggleRow ({ item, value }) {
+      let selected = this.value.slice()
+      value && selected.push(item) || (selected = selected.filter(i => i[this.selectedKey] !== item[this.selectedKey]))
+      this.$emit('input', selected)
+    },
+    changeRowsPerPage (val) {
+      this.updatePagination({ rowsPerPage: val, page: 1 })
+    },
+    changePage (val) {
+      const page = this.computedPagination.page + val
+      this.updatePagination({ page })
     }
   },
 
@@ -193,13 +200,13 @@ export default {
           props: {
             ...this.$attrs,
             headers: this.headers,
-            filteredItems: this.filteredItems,
-            computedPagination: this.computedPagination
+            items: this.filteredItems,
+            pagination: this.computedPagination
           },
           scopedSlots: this.$scopedSlots,
           on: {
-            toggle: this.toggle,
-            sort: this.sort
+            toggleAll: this.toggleAll,
+            sortItems: this.sortItems
           }
         }),
         h(TableProgressBar, {
@@ -208,27 +215,25 @@ export default {
         h(TableBody, {
           props: {
             ...this.$attrs,
-            filteredItems: this.filteredItems,
+            items: this.filteredItems,
             itemsLength: this.itemsLength
           },
           scopedSlots: this.$scopedSlots,
           on: {
-            toggle: ({ item, value }) => {
-              let selected = this.value.slice()
-              value && selected.push(item) || (selected = selected.filter(i => i[this.selectedKey] !== item[this.selectedKey]))
-              this.$emit('input', selected)
-            }
+            toggleRow: this.toggleRow
           }
         }),
         this.hideActions ? null : h(TableFooter, {
           props: {
             itemsLength: this.itemsLength,
-            computedPagination: this.computedPagination,
+            pagination: this.computedPagination,
             pageStart: this.pageStart,
             pageStop: this.pageStop
           },
+          scopedSlots: this.$scopedSlots,
           on: {
-            changeRowsPerPage: (val) => this.updatePagination({ rowsPerPage: val, page: 1 })
+            changeRowsPerPage: this.changeRowsPerPage,
+            changePage: this.changePage
           }
         })
       ])

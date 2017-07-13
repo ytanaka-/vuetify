@@ -1,6 +1,8 @@
 export default {
   name: 'table-footer',
 
+  inheritAttrs: false,
+
   props: {
     rowsPerPageItems: {
       type: Array,
@@ -18,31 +20,21 @@ export default {
       default: 'Rows per page:'
     },
     itemsLength: Number,
-    computedPagination: Object,
+    pagination: Object,
     pageStart: Number,
     pageStop: Number
   },
 
   methods: {
-    genPrevIcon () {
+    genIcon ({ icon, click, disabled }) {
       return this.$createElement('v-btn', {
         props: {
-          disabled: this.computedPagination.page === 1,
+          disabled,
           icon: true,
           flat: true
         },
-        nativeOn: { click: () => (this.computedPagination.page--) }
-      }, [this.$createElement('v-icon', 'chevron_left')])
-    },
-    genNextIcon () {
-      return this.$createElement('v-btn', {
-        props: {
-          disabled: this.computedPagination.page * this.computedPagination.rowsPerPage >= this.itemsLength || this.pageStop < 0,
-          icon: true,
-          flat: true
-        },
-        nativeOn: { click: () => (this.computedPagination.page++) }
-      }, [this.$createElement('v-icon', 'chevron_right')])
+        nativeOn: { click }
+      }, [this.$createElement('v-icon', icon)])
     },
     genSelect () {
       return this.$createElement('div', {
@@ -52,7 +44,7 @@ export default {
         this.$createElement('v-select', {
           props: {
             items: this.rowsPerPageItems,
-            value: this.computedPagination.rowsPerPage,
+            value: this.pagination.rowsPerPage,
             hideDetails: true,
             auto: true
           },
@@ -81,14 +73,22 @@ export default {
         'class': 'datatable__actions__pagination'
       }, [pagination])
     },
-    genActions () {
-      return [this.$createElement('div', {
+    genActions (h) {
+      return [h('div', {
         'class': 'datatable__actions'
       }, [
         this.genSelect(),
         this.genPagination(),
-        this.genPrevIcon(),
-        this.genNextIcon()
+        this.genIcon({
+          icon: 'chevron_left',
+          click: () => this.$emit('changePage', -1),
+          disabled: this.pagination.page === 1
+        }),
+        this.genIcon({
+          icon: 'chevron_right',
+          click: () => this.$emit('changePage', 1),
+          disabled: this.pagination.page * this.pagination.rowsPerPage >= this.itemsLength || this.pageStop < 0
+        })
       ])]
     }
   },
@@ -98,7 +98,7 @@ export default {
       h('tr', [
         h('td', {
           attrs: { colspan: '100%' }
-        }, this.genActions())
+        }, this.genActions(h))
       ])
     ])
   }

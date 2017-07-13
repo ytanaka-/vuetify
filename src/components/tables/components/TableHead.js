@@ -1,6 +1,8 @@
 export default {
   name: 'table-head',
 
+  inheritAttrs: false,
+
   inject: ['isSelected'],
 
   data () {
@@ -10,14 +12,14 @@ export default {
   },
 
   props: {
+    selectAll: [Boolean, String],
+    headerText: String,
+    items: Array,
+    pagination: Object,
     headers: {
       type: Array,
       default: () => ([])
-    },
-    selectAll: [Boolean, String],
-    filteredItems: Array,
-    headerText: String,
-    computedPagination: Object
+    }
   },
 
   computed: {
@@ -28,11 +30,15 @@ export default {
       return this.hasSelectAll && this.someItems && !this.everyItem
     },
     everyItem () {
-      return this.filteredItems.length && this.filteredItems.every(i => this.isSelected(i))
+      return this.items.length && this.items.every(i => this.isSelected(i))
     },
     someItems () {
-      return this.filteredItems.some(i => this.isSelected(i))
+      return this.items.some(i => this.isSelected(i))
     }
+  },
+
+  mounted () {
+    console.log(this.selectAll)
   },
 
   watch: {
@@ -63,16 +69,16 @@ export default {
       const data = {}
 
       if ('sortable' in header && header.sortable || !('sortable' in header)) {
-        data.on = { click: () => this.$emit('sort', header.value) }
+        data.on = { click: () => this.$emit('sortItems', header.value) }
         !('value' in header) && console.warn('Data table headers must have a value property that corresponds to a value in the v-model array')
 
         classes.push('sortable')
         const icon = this.$createElement('v-icon', 'arrow_upward')
         header.align && header.align === 'left' && children.push(icon) || children.unshift(icon)
 
-        beingSorted = this.computedPagination.sortBy === header.value
+        beingSorted = this.pagination.sortBy === header.value
         beingSorted && classes.push('active')
-        beingSorted && this.computedPagination.descending && classes.push('desc') || classes.push('asc')
+        beingSorted && this.pagination.descending && classes.push('desc') || classes.push('asc')
       }
 
       header.align && classes.push(`text-xs-${header.align}`) || classes.push('text-xs-right')
@@ -103,7 +109,7 @@ export default {
           inputValue: this.all,
           indeterminate: this.indeterminate
         },
-        on: { change: val => this.$emit('toggle', val) }
+        on: { change: val => this.$emit('toggleAll', val) }
       })
 
       this.hasSelectAll && row.unshift(this.$createElement('th', [checkbox]))
