@@ -1,14 +1,19 @@
-import Head from './mixins/head'
-import Body from './mixins/body'
-import Foot from './mixins/foot'
-import Progress from './mixins/progress'
-import Filterable from '~mixins/filterable'
 import { getObjectValueByPath } from '~util/helpers'
+import TableHead from './components/TableHead'
+import TableProgressBar from './components/TableProgressBar'
+import TableBody from './components/TableBody'
+import TableFooter from './components/TableFooter'
 
 export default {
+  inheritAttrs: true,
+
   name: 'datatable',
 
-  mixins: [Head, Body, Filterable, Foot, Progress],
+  provide () {
+    return {
+      isSelected: this.isSelected
+    }
+  },
 
   data () {
     return {
@@ -33,26 +38,6 @@ export default {
       default: 'text'
     },
     hideActions: Boolean,
-    noResultsText: {
-      type: String,
-      default: 'No matching records found'
-    },
-    rowsPerPageItems: {
-      type: Array,
-      default () {
-        return [
-          5,
-          10,
-          25,
-          { text: 'All', value: -1 }
-        ]
-      }
-    },
-    rowsPerPageText: {
-      type: String,
-      default: 'Rows per page:'
-    },
-    selectAll: [Boolean, String],
     search: {
       required: false
     },
@@ -106,10 +91,6 @@ export default {
       type: Number,
       default: null
     },
-    loading: {
-      type: [Boolean, String],
-      default: false
-    },
     selectedKey: {
       type: String,
       default: 'id'
@@ -121,25 +102,6 @@ export default {
   },
 
   computed: {
-    computedPagination () {
-      return this.pagination || this.defaultPagination
-    },
-    hasSelectAll () {
-      return this.selectAll !== undefined && this.selectAll !== false
-    },
-    itemsLength () {
-      if (this.search) return this.searchLength
-      return this.totalItems || this.items.length
-    },
-    indeterminate () {
-      return this.hasSelectAll && this.someItems && !this.everyItem
-    },
-    everyItem () {
-      return this.filteredItems.length && this.filteredItems.every(i => this.isSelected(i))
-    },
-    someItems () {
-      return this.filteredItems.some(i => this.isSelected(i))
-    },
     getPage () {
       return this.computedPagination.rowsPerPage === Object(this.computedPagination.rowsPerPage)
         ? this.computedPagination.rowsPerPage.value
@@ -150,6 +112,13 @@ export default {
     },
     pageStop () {
       return this.getPage === -1 ? this.itemsLength : this.computedPagination.page * this.getPage
+    },
+    computedPagination () {
+      return this.pagination || this.defaultPagination
+    },
+    itemsLength () {
+      if (this.search) return this.searchLength
+      return this.totalItems || this.items.length
     },
     filteredItems () {
       if (this.totalItems) return this.items
@@ -174,17 +143,8 @@ export default {
   },
 
   watch: {
-    indeterminate (val) {
-      if (val) this.all = true
-    },
-    someItems (val) {
-      if (!val) this.all = false
-    },
     search () {
       this.updatePagination({ page: 1 })
-    },
-    everyItem (val) {
-      if (val) this.all = true
     }
   },
 
@@ -207,9 +167,6 @@ export default {
         this.updatePagination({ sortBy: null, descending: null })
       }
     },
-    genTR (children, data = {}) {
-      return this.$createElement('tr', data, children)
-    },
     toggle (value) {
       const selected = Object.assign({}, this.selected)
       this.filteredItems.forEach(i => selected[i[this.selectedKey]] = value)
@@ -229,14 +186,51 @@ export default {
     return h('v-table-overflow', {}, [
       h('table', {
         'class': {
-          'datatable table': true,
-          'datatable--select-all': this.selectAll !== false
+          'datatable table': true
         }
       }, [
-        this.genTHead(),
-        this.genTProgress(),
-        this.genTBody(),
-        this.hideActions ? null : this.genTFoot()
+        h(TableHead, {
+          props: {
+            ...this.$attrs,
+            headers: this.headers,
+            filteredItems: this.filteredItems,
+            computedPagination: this.computedPagination
+          },
+          scopedSlots: this.$scopedSlots,
+          on: {
+            toggle: this.toggle,
+            sort: this.sort
+          }
+        }),
+        h(TableProgressBar, {
+          props: this.$attrs
+        }),
+        h(TableBody, {
+          props: {
+            ...this.$attrs,
+            filteredItems: this.filteredItems,
+            itemsLength: this.itemsLength
+          },
+          scopedSlots: this.$scopedSlots,
+          on: {
+            toggle: ({ item, value }) => {
+              let selected = this.value.slice()
+              value && selected.push(item) || (selected = selected.filter(i => i[this.selectedKey] !== item[this.selectedKey]))
+              this.$emit('input', selected)
+            }
+          }
+        }),
+        this.hideActions ? null : h(TableFooter, {
+          props: {
+            itemsLength: this.itemsLength,
+            computedPagination: this.computedPagination,
+            pageStart: this.pageStart,
+            pageStop: this.pageStop
+          },
+          on: {
+            changeRowsPerPage: (val) => this.updatePagination({ rowsPerPage: val, page: 1 })
+          }
+        })
       ])
     ])
   }

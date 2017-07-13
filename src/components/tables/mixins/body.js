@@ -25,7 +25,7 @@ export default {
           if (row.length && row[0].tag === 'tr') {
             return row
           } else {
-            return this.genTR(row, { attrs: { active: this.isSelected(item) } })
+            return this.$createElement('tr', { attrs: { active: this.isSelected(item) } }, row)
           }
         })
       }
@@ -33,7 +33,7 @@ export default {
       return this.$createElement('tbody', children)
     },
     genEmptyBody (text) {
-      return this.genTR([this.$createElement('td', {
+      return this.$createElement('tr', {}, [this.$createElement('td', {
         'class': 'text-xs-center',
         attrs: { colspan: '100%' }
       }, text)])

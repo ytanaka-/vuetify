@@ -1,4 +1,28 @@
 export default {
+  name: 'table-footer',
+
+  props: {
+    rowsPerPageItems: {
+      type: Array,
+      default () {
+        return [
+          5,
+          10,
+          25,
+          { text: 'All', value: -1 }
+        ]
+      }
+    },
+    rowsPerPageText: {
+      type: String,
+      default: 'Rows per page:'
+    },
+    itemsLength: Number,
+    computedPagination: Object,
+    pageStart: Number,
+    pageStop: Number
+  },
+
   methods: {
     genPrevIcon () {
       return this.$createElement('v-btn', {
@@ -32,7 +56,7 @@ export default {
             hideDetails: true,
             auto: true
           },
-          on: { input: val => { this.computedPagination.rowsPerPage = val; this.computedPagination.page = 1 } }
+          on: { input: (val) => this.$emit('changeRowsPerPage', val) }
         })
       ])
     },
@@ -66,15 +90,16 @@ export default {
         this.genPrevIcon(),
         this.genNextIcon()
       ])]
-    },
-    genTFoot () {
-      return this.$createElement('tfoot', [
-        this.$createElement('tr', [
-          this.$createElement('td', {
-            attrs: { colspan: '100%' }
-          }, this.genActions())
-        ])
-      ])
     }
+  },
+
+  render (h) {
+    return h('tfoot', [
+      h('tr', [
+        h('td', {
+          attrs: { colspan: '100%' }
+        }, this.genActions())
+      ])
+    ])
   }
 }
