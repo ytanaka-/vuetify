@@ -11,7 +11,13 @@ export default {
 
   provide () {
     return {
-      isSelected: this.isSelected
+      isSelected: this.isSelected,
+      pageStart: () => this.pageStart,
+      pageStop: () => this.pageStop,
+      pagination: () => this.computedPagination,
+      itemsLength: () => this.itemsLength,
+      items: () => this.filteredItems,
+      headers: () => this.headers
     }
   },
 
@@ -54,6 +60,8 @@ export default {
     customSort: {
       type: Function,
       default: (items, index, descending) => {
+        if (index === null) return items
+
         return items.sort((a, b) => {
           let sortA = getObjectValueByPath(a, index)
           let sortB = getObjectValueByPath(b, index)
@@ -152,20 +160,21 @@ export default {
       return this.selected[item[this.selectedKey]]
     },
     sortItems (index) {
+      let pagination
       if (this.computedPagination.sortBy === null) {
-        this.updatePagination({ sortBy: index, descending: false })
+        pagination = { sortBy: index, descending: false }
       } else if (this.computedPagination.sortBy === index && !this.computedPagination.descending) {
-        this.updatePagination({ descending: true })
+        pagination = { descending: true }
       } else if (this.computedPagination.sortBy !== index) {
-        this.updatePagination({ sortBy: index, descending: false })
+        pagination = { sortBy: index, descending: false }
       } else {
-        this.updatePagination({ sortBy: null, descending: null })
+        pagination = { sortBy: null, descending: null }
       }
+      this.updatePagination(pagination)
     },
     toggleAll (value) {
       const selected = Object.assign({}, this.selected)
       this.filteredItems.forEach(i => selected[i[this.selectedKey]] = value)
-
       this.$emit('input', this.items.filter(i => selected[i[this.selectedKey]]))
     },
     toggleRow ({ item, value }) {
@@ -177,8 +186,7 @@ export default {
       this.updatePagination({ rowsPerPage: val, page: 1 })
     },
     changePage (val) {
-      const page = this.computedPagination.page + val
-      this.updatePagination({ page })
+      this.updatePagination({ page: val })
     }
   },
 
@@ -197,12 +205,7 @@ export default {
         }
       }, [
         h(TableHead, {
-          props: {
-            ...this.$attrs,
-            headers: this.headers,
-            items: this.filteredItems,
-            pagination: this.computedPagination
-          },
+          props: this.$attrs,
           scopedSlots: this.$scopedSlots,
           on: {
             toggleAll: this.toggleAll,
@@ -213,23 +216,14 @@ export default {
           props: this.$attrs
         }),
         h(TableBody, {
-          props: {
-            ...this.$attrs,
-            items: this.filteredItems,
-            itemsLength: this.itemsLength
-          },
+          props: this.$attrs,
           scopedSlots: this.$scopedSlots,
           on: {
             toggleRow: this.toggleRow
           }
         }),
         this.hideActions ? null : h(TableFooter, {
-          props: {
-            itemsLength: this.itemsLength,
-            pagination: this.computedPagination,
-            pageStart: this.pageStart,
-            pageStop: this.pageStop
-          },
+          props: this.$attrs,
           scopedSlots: this.$scopedSlots,
           on: {
             changeRowsPerPage: this.changeRowsPerPage,

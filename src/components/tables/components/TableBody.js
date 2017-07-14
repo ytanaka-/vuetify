@@ -3,9 +3,7 @@ import Filterable from '~mixins/filterable'
 export default {
   name: 'table-body',
 
-  inheritAttrs: false,
-
-  inject: ['isSelected'],
+  inject: ['isSelected', 'itemsLength', 'items'],
 
   mixins: [Filterable],
 
@@ -13,9 +11,7 @@ export default {
     noResultsText: {
       type: String,
       default: 'No matching records found'
-    },
-    items: Array,
-    itemsLength: Number
+    }
   },
 
   methods: {
@@ -30,12 +26,12 @@ export default {
   render (h) {
     let children = []
 
-    if (!this.itemsLength) {
+    if (!this.itemsLength()) {
       children = [this.genEmptyBody(this.noDataText)]
-    } else if (!this.items.length) {
+    } else if (!this.items().length) {
       children = [this.genEmptyBody(this.noResultsText)]
     } else {
-      children = this.items.map((item, index) => {
+      children = this.items().map((item, index) => {
         const props = { item, index }
 
         Object.defineProperty(props, 'selected', {

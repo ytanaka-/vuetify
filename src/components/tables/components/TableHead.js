@@ -1,9 +1,7 @@
 export default {
   name: 'table-head',
 
-  inheritAttrs: false,
-
-  inject: ['isSelected'],
+  inject: ['isSelected', 'pagination', 'items', 'headers'],
 
   data () {
     return {
@@ -13,13 +11,7 @@ export default {
 
   props: {
     selectAll: [Boolean, String],
-    headerText: String,
-    items: Array,
-    pagination: Object,
-    headers: {
-      type: Array,
-      default: () => ([])
-    }
+    headerText: String
   },
 
   computed: {
@@ -30,15 +22,11 @@ export default {
       return this.hasSelectAll && this.someItems && !this.everyItem
     },
     everyItem () {
-      return this.items.length && this.items.every(i => this.isSelected(i))
+      return this.items().length && this.items().every(i => this.isSelected(i))
     },
     someItems () {
-      return this.items.some(i => this.isSelected(i))
+      return this.items().some(i => this.isSelected(i))
     }
-  },
-
-  mounted () {
-    console.log(this.selectAll)
   },
 
   watch: {
@@ -76,9 +64,9 @@ export default {
         const icon = this.$createElement('v-icon', 'arrow_upward')
         header.align && header.align === 'left' && children.push(icon) || children.unshift(icon)
 
-        beingSorted = this.pagination.sortBy === header.value
+        beingSorted = this.pagination().sortBy === header.value
         beingSorted && classes.push('active')
-        beingSorted && this.pagination.descending && classes.push('desc') || classes.push('asc')
+        beingSorted && this.pagination().descending && classes.push('desc') || classes.push('asc')
       }
 
       header.align && classes.push(`text-xs-${header.align}`) || classes.push('text-xs-right')
@@ -94,14 +82,14 @@ export default {
 
     if (this.$scopedSlots.headers) {
       const row = this.$scopedSlots.headers({
-        headers: this.headers,
+        headers: this.headers(),
         indeterminate: this.indeterminate,
         all: this.all
       })
 
       children = row.length && row[0].tag === 'tr' ? row : h('tr', [row])
     } else {
-      const row = this.headers.map(o => this.genHeader(o))
+      const row = this.headers().map(o => this.genHeader(o))
       const checkbox = this.$createElement('v-checkbox', {
         props: {
           color: this.selectAll === true && '' || this.selectAll,

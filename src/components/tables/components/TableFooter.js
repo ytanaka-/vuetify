@@ -1,7 +1,7 @@
 export default {
   name: 'table-footer',
 
-  inheritAttrs: false,
+  inject: ['pageStart', 'pageStop', 'pagination', 'itemsLength'],
 
   props: {
     rowsPerPageItems: {
@@ -18,11 +18,7 @@ export default {
     rowsPerPageText: {
       type: String,
       default: 'Rows per page:'
-    },
-    itemsLength: Number,
-    pagination: Object,
-    pageStart: Number,
-    pageStop: Number
+    }
   },
 
   methods: {
@@ -44,7 +40,7 @@ export default {
         this.$createElement('v-select', {
           props: {
             items: this.rowsPerPageItems,
-            value: this.pagination.rowsPerPage,
+            value: this.pagination().rowsPerPage,
             hideDetails: true,
             auto: true
           },
@@ -53,20 +49,21 @@ export default {
       ])
     },
     genPagination () {
+      const [pageStart, pageStop, itemsLength] = [this.pageStart(), this.pageStop(), this.itemsLength()]
       let pagination = '–'
 
-      if (this.itemsLength) {
-        const stop = this.itemsLength < this.pageStop || this.pageStop < 0
-                ? this.itemsLength
-                : this.pageStop
+      if (itemsLength) {
+        const stop = itemsLength < pageStop || pageStop < 0
+                ? itemsLength
+                : pageStop
 
         pagination = this.$scopedSlots.pageText
           ? this.$scopedSlots.pageText({
-            pageStart: this.pageStart + 1,
+            pageStart: pageStart + 1,
             pageStop: stop,
-            itemsLength: this.itemsLength
+            itemsLength
           })
-          : `${this.pageStart + 1}-${stop} of ${this.itemsLength}`
+          : `${pageStart + 1}-${stop} of ${itemsLength}`
       }
 
       return this.$createElement('div', {
@@ -81,13 +78,15 @@ export default {
         this.genPagination(),
         this.genIcon({
           icon: 'chevron_left',
-          click: () => this.$emit('changePage', -1),
-          disabled: this.pagination.page === 1
+          click: () => this.$emit('changePage', this.pagination().page - 1),
+          disabled: this.pagination().page === 1
         }),
         this.genIcon({
           icon: 'chevron_right',
-          click: () => this.$emit('changePage', 1),
-          disabled: this.pagination.page * this.pagination.rowsPerPage >= this.itemsLength || this.pageStop < 0
+          click: () => this.$emit('changePage', this.pagination().page + 1),
+          disabled: this.pagination().rowsPerPage < 0 ||
+            this.pagination().page * this.pagination().rowsPerPage >= this.itemsLength() ||
+            this.pageStop() < 0
         })
       ])]
     }
